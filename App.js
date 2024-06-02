@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import CircleButton from './components/CircleButton';
 import IconButton from './components/IconButton';
+import * as MediaLibrary from 'expo-media-library'
  import ImageViewer from './components/ImageViewer'; 
  import Button from './components/Button'; 
  import * as ImagePicker from 'expo-image-picker';
@@ -9,9 +10,14 @@ import IconButton from './components/IconButton';
  import { useState } from 'react';
  import EmojiSticker from './components/EmojiSticker';
  import EmojiList from './components/EmojiList';
+ import { captureRef } from 'react-native-view-shot';
+ import { GestureHandlerRootView } from "react-native-gesture-handler";
+ import { useRef } from 'react';
 const PlaceholderImage = require('./assets/images/background-image.png');
 
   export default function App() {
+    const imageRef = useRef();
+    const [status, requestPermission] = MediaLibrary.usePermissions();
     const [pickedEmoji, setPickedEmoji] = useState(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [showAppOptions, setShowAppOptions] = useState(false);
@@ -21,7 +27,9 @@ const PlaceholderImage = require('./assets/images/background-image.png');
         allowsEditing: true,
         quality: 1,
       });
-  
+      if (status === null) {
+        requestPermission();
+      }
       if (!result.canceled) {
         setSelectedImage(result.assets[0].uri);
         setShowAppOptions(true);
@@ -41,14 +49,29 @@ const onReset = () => {
   };
 
   const onSaveImageAsync = async () => {
-    // we will implement this later
+    try {
+      const localUri = await captureRef(imageRef, {
+        height: 440,
+        quality: 1,
+      });
+
+      await MediaLibrary.saveToLibraryAsync(localUri);
+      if (localUri) {
+        alert("Saved!");
+      }
+    } catch (e) {
+      console.log(e);
+    }
   };
   return (
+    <GestureHandlerRootView style={styles.container}>
     <View style={styles.container}>
       <View style={styles.imageContainer}>
+      <View ref={imageRef} collapsable={false}>
         <ImageViewer placeholderImageSource={PlaceholderImage} selectedImage={selectedImage}/>
       </View>
      { pickedEmoji && <EmojiSticker imageSize={40} stickerSource={pickedEmoji} />}
+     </View>
       {showAppOptions ? 
         (
           <View style={styles.optionsContainer}>
@@ -69,6 +92,7 @@ const onReset = () => {
       </EmojiPicker>
       <StatusBar style="auto" />
     </View>
+    </GestureHandlerRootView>
   );
 }
 
